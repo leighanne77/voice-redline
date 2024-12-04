@@ -1,0 +1,93 @@
+# Ignore environment variables file
+.env
+
+# Audio files
+*.wav
+*.mp3
+!tests/fixtures/sample_command.wav
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+# Ignore logs
+logs/
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore node modules if you decide to use npm
+node_modules/
+
+# Ignore any local configuration files
+config.local.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.env
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+*.log
+logs/
+test_db.sqlite
+.coverage
+htmlcov/
+.pytest_cache/
+tests/.env.test
+code_suggestions.md
+
+# Sensitive information
+todos.txt
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store

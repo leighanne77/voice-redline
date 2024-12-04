@@ -1,0 +1,32 @@
+{
+  "name": "voice-redline",
+  "version": "1.0.0",
+  "description": "Voice-controlled document redlining with AI assistance",
+  "scripts": {
+    "start": "python -m uvicorn app.main:app --reload",
+    "test": "pytest",
+    "test:coverage": "pytest --cov=app tests/",
+    "lint": "ruff check .",
+    "format": "black .",
+    "type-check": "mypy app tests",
+    "clean": "rm -rf __pycache__ .pytest_cache .coverage",
+    "update-imports": "python scripts/update_imports.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/voice-redline.git"
+  },
+  "keywords": [
+    "voice",
+    "redline",
+    "document",
+    "ai",
+    "fastapi"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/voice-redline/issues"
+  },
+  "homepage": "https://github.com/yourusername/voice-redline#readme"
+}

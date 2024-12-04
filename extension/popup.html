@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice-Redline</title>
+    <style>
+        body {
+            width: 300px;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        #previewPanel {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .suggestion {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f5f5f5;
+        }
+        .suggestion-arrow {
+            margin: 5px 0;
+            color: #666;
+        }
+        .suggestion-reason {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Voice-Redline</h1>
+    <button id="startButton">Start Voice Recognition</button>
+    <button id="stopButton" disabled>Stop Voice Recognition</button>
+    <button id="suggestButton">Make Suggestion</button>
+    <button id="clearButton">Clear Changes</button>
+    <button id="acceptButton">Accept Changes</button>
+    <div id="status"></div>
+    <div id="previewPanel"></div>
+    <script src="popup.js"></script>
+</body>
+</html>
