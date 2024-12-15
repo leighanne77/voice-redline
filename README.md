@@ -1,4 +1,4 @@
-
+#extension is under construction will be updated Jan 1, 2025
 # Real-Time Collaborative Document Markup Tool
 
 This tool uses the Groq API and is a Chrome Browser Extension, allowing you to mark up and change online documents, including Google Documents and Microsoft Documents, paragraph-by-paragraph with the help of a pop up side panel, right in your browser. The tool responds to manual and voice-enabled commands, and makes suggestions in the pop up preview panel, paragraph-by-paragraph. 
