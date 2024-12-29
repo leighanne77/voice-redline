@@ -1,0 +1,11 @@
+{
+    "audio": {
+        "invalid_format": "El formato de audio no es válido o está dañado",
+        "file_too_large": "El archivo de audio excede el límite de tamaño de {size}MB",
+        "processing_failed": "Error al procesar la entrada de audio: {error}"
+    },
+    "document": {
+        "not_found": "Documento {doc_id} no encontrado",
+        "update_failed": "Error al actualizar el documento: {error}"
+    }
+} 

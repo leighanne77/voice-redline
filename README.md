@@ -1,36 +1,78 @@
-#extension is under construction will be updated Jan 1, 2025
+ **Note**: The Chrome extension component is currently under construction and will be available after January 15, 2024
 # Real-Time Collaborative Document Markup Tool
+@https://github.com/leighanne77/voice-redline 
 
 This tool uses the Groq API and is a Chrome Browser Extension, allowing you to mark up and change online documents, including Google Documents and Microsoft Documents, paragraph-by-paragraph with the help of a pop up side panel, right in your browser. The tool responds to manual and voice-enabled commands, and makes suggestions in the pop up preview panel, paragraph-by-paragraph. 
 
-## Running the Application
+## Prerequisites (not requirements, that is later)
 
-1. Ensure your virtual environment is activated. If not, activate it using the commands in step 2 of the Installation section.
+- Python 3.8+
+- Chrome browser (for extension when available)
+- Groq API key
+- Node.js 14+ (for extension development)
 
-2. Start the voice processing server:
+## A. Running the Application
+
+For this version of the application, you will need to run the voice processing server and the main backend server. And you will need to activate and deactivate a virtual environment.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/leighanne77/voice-redline.git
+   cd voice-redline
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   # On Windows
+   .\venv\Scripts\activate
+   # On Unix or MacOS
+   source venv/bin/activate
+   ```
+
+3. a. Install dependencies 
+   ```bash
+   pip install -r requirements.txt
+   ```
+   b. copy the `.env.example` to `.env` AND add your Groq API key to the `.env` file - puttig your API Key where you see "your_api_key_here" [as in "GROQ_API_KEY=your_api_key_here"] 
+   Best Practices:
+   Always keep your API key secure
+   Never commit it to version control, .env will be the right place to keep it secure and not committed to version control
+
+   ```bash
+   cp .env.example .env && echo "GROQ_API_KEY=your_api_key_here" > .env
+# OR
+   vim .env
+# OR on Windows:
+   notepad .env
+ ```
+
+4. Start the voice processing server:
    ```
    cd src
    python voice_processor.py
    ```
 
-3. The voice processing server will start running on `ws://localhost:8765`
+5. The voice processing server will start running on `ws://localhost:8765`
 
-4. Start the main backend server:
+6. Start the main backend server:
    ```
    python main.py
    ```
 
-5. The main server will start running on `http://localhost:8000`
+7. Check this: The main server should start running on `http://localhost:8000`
 
-6. Use the browser extension as described in the Usage section below.
+8. Use the browser extension as described in the Usage section below. 
 
-To deactivate the virtual environment when you're done, simply run:
-```
-deactivate
-```
-## Usage
+9. When done, exit or deactivate the virtual environment:
+   ```
+   deactivate
+   ```  
 
-1. Start both the voice processing server and the main backend server as described in the "Running the Application" section.
+
+## B. Usage - Chrome Extension
+
+1. Start both the voice processing server and the main backend server as described in the "A. Running the Application" section.
 
 2. Use the browser extension for collaborative document editing:
    - Open a document in Google Docs or Microsoft Office Online
@@ -71,7 +113,19 @@ Manual:
 
      All changes will be logged and tracked in an appendix at the end of the document, even after "Accept Changes" is pressed or the words "Accept All, Move to Final" are said
 
-  
+## Development Commands - Devs Only, not for users
+
+### NPM Scripts (JavaScript & Python)
+- `npm start` - Start the development server
+- `npm test` - Run tests
+- `npm run lint` - Check code style
+- `npm run format` - Format code
+- `npm run clean` - Clean cache files
+
+### Make Commands (Translations)
+- `make translations-setup` - Initialize translations
+- `make translations-compile` - Compile translation files
+- `make translations-update` - Update translation files
 
 ## Project Structure
 
@@ -86,8 +140,6 @@ Manual:
 - `requirements.txt`: List of Python dependencies
 - `.env`: Configuration file for storing API keys (not tracked in git)
 
-Second Priority: Edge Cases Handled: 
-
 
 ## Appendix: Edge Cases
 
@@ -100,7 +152,6 @@ First Priority:
 - Panel size constraints
 - Display overflow
 - Formatting preservation
-
 
 ### Voice Commands
 - Background noise/unclear speech
@@ -135,3 +186,10 @@ Second Priority:
 - Multiple languages in one document
 - Malformed paragraph structures
 - Invalid text content
+
+## Prerequisites
+
+- Python 3.8+
+- Chrome browser (for extension when available)
+- Groq API key
+- Node.js 14+ (for extension development)

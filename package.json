@@ -10,11 +10,16 @@
     "format": "black .",
     "type-check": "mypy app tests",
     "clean": "rm -rf __pycache__ .pytest_cache .coverage",
-    "update-imports": "python scripts/update_imports.py"
+    "update-imports": "python scripts/update_imports.py",
+    "dev": "vite",
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "test:extension": "jest",
+    "lint:js": "eslint . --ext .js,.jsx"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/voice-redline.git"
+    "url": "git+https://github.com/leighanne77/voice-redline.git"
   },
   "keywords": [
     "voice",
@@ -26,7 +31,7 @@
   "author": "Your Name",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/voice-redline/issues"
+    "url": "https://github.com/leighanne77/voice-redline/issues"
   },
-  "homepage": "https://github.com/yourusername/voice-redline#readme"
+  "homepage": "https://github.com/leighanne77/voice-redline#readme"
 }

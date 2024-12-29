@@ -1,0 +1,11 @@
+{
+    "audio": {
+        "invalid_format": "Audio format is invalid or corrupted",
+        "file_too_large": "Audio file exceeds maximum size limit of {size}MB",
+        "processing_failed": "Failed to process audio input: {error}"
+    },
+    "document": {
+        "not_found": "Document {doc_id} not found",
+        "update_failed": "Failed to update document: {error}"
+    }
+} 

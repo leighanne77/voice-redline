@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, WebSocket, UploadFile, File, HTTPException
+from fastapi import FastAPI, WebSocket, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List, Optional
 import asyncio
@@ -7,44 +7,59 @@ from datetime import datetime
 
 from app.services.ai_processor import AIProcessor
 from app.services.document_editor import DocumentEditor
+from app.middleware.rate_limit import RateLimiter
+from tests.constants.test_messages import MessageType
+from tests.constants.message_loader import MessageLoader
 from app.config import settings
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Voice Redline", version="1.0.0")
 
-# Configure CORS
+# Initialize services
+ai_processor = AIProcessor()
+document_editor = DocumentEditor()
+rate_limiter = RateLimiter()
+message_loader = MessageLoader()
+
+# Add rate limiting middleware
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    await rate_limiter.check_rate_limit(request)
+    response = await call_next(request)
+    return response
+
+# Configure CORS for Chrome extension
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=["chrome-extension://*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize services
-ai_processor = AIProcessor()
-document_editor = DocumentEditor()
-
-# WebSocket connection manager
+# WebSocket connection manager with enhanced error handling
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         self.document_sessions: Dict[str, List[WebSocket]] = {}
+        self.user_cursors: Dict[str, Dict[str, int]] = {}  # track cursor positions
 
-    async def connect(self, websocket: WebSocket, document_id: Optional[str] = None):
+    async def connect(self, websocket: WebSocket, document_id: str, user_id: str):
         await websocket.accept()
         self.active_connections.append(websocket)
-        if document_id:
-            if document_id not in self.document_sessions:
-                self.document_sessions[document_id] = []
-            self.document_sessions[document_id].append(websocket)
-        logger.info(f"New WebSocket connection established for document: {document_id}")
+        if document_id not in self.document_sessions:
+            self.document_sessions[document_id] = []
+        self.document_sessions[document_id].append(websocket)
+        self.user_cursors[user_id] = {"document_id": document_id, "position": 0}
+        
+        # Broadcast user joined message
+        await self.broadcast_to_document(
+            document_id,
+            {"type": "user_joined", "user_id": user_id}
+        )
 
     def disconnect(self, websocket: WebSocket, document_id: Optional[str] = None):
         self.active_connections.remove(websocket)
@@ -81,49 +96,50 @@ async def upload_file(file: UploadFile = File(...)) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.websocket("/ws/{document_id}")
-async def websocket_endpoint(websocket: WebSocket, document_id: str):
-    """Handle WebSocket connections for real-time voice processing"""
-    await manager.connect(websocket, document_id)
+async def websocket_endpoint(
+    websocket: WebSocket, 
+    document_id: str,
+    user_id: str
+):
+    """Handle WebSocket connections for real-time collaboration"""
     try:
-        ai_processor.start_listening(document_id)
-        
-        async def on_command(text: str):
-            try:
-                result = await ai_processor.handle_command(text)
-                
-                if result.get("action") in ["edit", "suggestion", "comment"]:
-                    document_result = await document_editor.apply_changes(
-                        document_id,
-                        result
-                    )
-                    
-                    await manager.broadcast_to_document(document_id, {
-                        "type": "document_update",
-                        "changes": document_result
-                    })
-                    
-                    logger.info(f"Changes applied and broadcasted for document: {document_id}")
-                
-            except Exception as e:
-                logger.error(f"Command processing error: {str(e)}")
-                await websocket.send_json({"error": str(e)})
-
-        ai_processor.set_command_callback(on_command)
+        await manager.connect(websocket, document_id, user_id)
+        await rate_limiter.check_websocket_limit(user_id)
         
         while True:
-            try:
-                audio_data = await websocket.receive_bytes()
-                result = await ai_processor.process_input(audio_data, "voice")
-                await websocket.send_json(result)
-            except Exception as e:
-                logger.error(f"Stream processing error: {str(e)}")
-                await websocket.send_json({"error": str(e)})
-                
+            data = await websocket.receive_json()
+            
+            # Handle different message types
+            if data["type"] == "voice_command":
+                await rate_limiter.check_voice_limit(websocket)
+                result = await ai_processor.process_command(data["command"])
+            elif data["type"] == "cursor_move":
+                result = await document_editor.update_cursor(
+                    document_id,
+                    user_id,
+                    data["position"]
+                )
+            elif data["type"] == "suggestion":
+                await rate_limiter.check_groq_limit(websocket)
+                result = await ai_processor.process_suggestion(
+                    document_id,
+                    data["text"],
+                    data["paragraph_id"]
+                )
+            
+            # Broadcast updates to all users
+            await manager.broadcast_to_document(document_id, result)
+            
     except Exception as e:
         logger.error(f"WebSocket error: {str(e)}")
+        await websocket.send_json({
+            "error": message_loader.get_message(
+                MessageType.ERROR_PROCESSING,
+                error=str(e)
+            )
+        })
     finally:
         manager.disconnect(websocket, document_id)
-        ai_processor.stop_listening()
 
 @app.post("/process-command/{document_id}")
 async def process_command(document_id: str, command: Dict[str, Any]) -> Dict[str, Any]:

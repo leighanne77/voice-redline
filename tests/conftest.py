@@ -2,19 +2,18 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 import os
-
-# Mock groq before other imports
-groq_mock = MagicMock()
-patch('groq.Client', return_value=groq_mock).start()
-
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services.ai_processor import AIProcessor
+from tests.constants.test_messages import TEST_MESSAGES, MessageType
 
 # Constants
 TEST_DATA_DIR = Path(__file__).parent / "data"
 
-os.environ["TESTING"] = "true"
+@pytest.fixture
+def test_messages():
+    """Fixture for test messages"""
+    return TEST_MESSAGES
 
 @pytest.fixture
 def client():
@@ -22,12 +21,13 @@ def client():
     return TestClient(app)
 
 @pytest.fixture
-def groq_client():
+def mock_groq():
     """Fixture for mocked Groq client"""
-    return groq_mock
+    with patch('groq.Client') as mock:
+        yield mock
 
 @pytest.fixture
-def ai_processor():
+def ai_processor(mock_groq):
     """Fixture for AIProcessor instance"""
     return AIProcessor()
 

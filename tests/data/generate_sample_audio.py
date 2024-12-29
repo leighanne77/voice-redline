@@ -1,23 +1,19 @@
 import wave
 import numpy as np
 
-def create_sample_wav():
-    """Create a 1-second sample WAV file for testing"""
-    # Audio parameters
-    duration = 1.0  # seconds
-    sample_rate = 44100
-    frequency = 440  # Hz (A4 note)
-
-    # Generate sine wave
+def create_sample_wav(filename="sample_audio.wav", duration=1.0, sample_rate=16000):
+    """Generate a sample WAV file for testing"""
+    # Generate a simple sine wave
     t = np.linspace(0, duration, int(sample_rate * duration))
-    samples = (32767 * np.sin(2 * np.pi * frequency * t)).astype(np.int16)
-
+    data = np.sin(2 * np.pi * 440 * t)
+    scaled = np.int16(data * 32767)
+    
     # Create WAV file
-    with wave.open('tests/data/sample_audio.wav', 'wb') as wav:
-        wav.setnchannels(1)  # Mono
-        wav.setsampwidth(2)  # 2 bytes per sample
+    with wave.open(filename, 'wb') as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
         wav.setframerate(sample_rate)
-        wav.writeframes(samples.tobytes())
+        wav.writeframes(scaled.tobytes())
 
 if __name__ == "__main__":
     create_sample_wav() 

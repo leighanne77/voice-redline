@@ -154,3 +154,16 @@ class TestAIProcessor:
         
         self.processor.stop_listening()
         assert self.processor.is_listening is False
+
+    def test_groq_integration(self, test_messages, mock_groq, ai_processor):
+        mock_groq.return_value.success = True
+        result = ai_processor.process_with_groq("test text")
+        assert result["status"] == "success", test_messages["groq"]["api_error"].format(
+            error="Processing failed"
+        )
+
+    def test_command_processing(self, test_messages, ai_processor):
+        result = ai_processor.process_command("test command")
+        assert result, test_messages["api"]["invalid_request"].format(
+            detail="Invalid command format"
+        )

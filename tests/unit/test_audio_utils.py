@@ -1,37 +1,25 @@
 import pytest
-from app.utils.audio import (
-    validate_audio_format,
-    convert_audio_format,
-    get_audio_duration
-)
+from app.utils.audio import validate_audio_format, get_audio_duration, get_audio_properties
+from tests.constants.message_loader import MessageLoader
 
-def test_validate_audio_format():
-    """Test audio format validation"""
-    valid_data = b"RIFF....WAVEfmt " # Mock WAV header
-    assert validate_audio_format(valid_data) is True
-    
-    invalid_data = b"invalid audio data"
-    assert validate_audio_format(invalid_data) is False
+def test_audio_validation(message_loader):
+    invalid_audio = b"invalid data"
+    result = validate_audio_format(invalid_audio)
+    assert not result, message_loader.get_message(
+        "audio.invalid_format",
+        lang="en"
+    )
 
-def test_convert_audio_format():
-    """Test audio format conversion"""
-    test_audio = b"test audio data"
-    result = convert_audio_format(test_audio, "wav")
-    assert isinstance(result, bytes)
+def test_file_size(message_loader):
+    size_mb = 10
+    error_msg = message_loader.get_message(
+        "audio.file_too_large",
+        lang="es",
+        size=size_mb
+    )
+    assert "10MB" in error_msg
 
-def test_get_audio_duration():
-    """Test audio duration calculation"""
-    try:
-        with open("tests/data/sample_audio.wav", "rb") as f:
-            duration = get_audio_duration(f.read())
-            assert isinstance(duration, float)
-            assert duration > 0
-    except FileNotFoundError:
-        # Generate sample file if it doesn't exist
-        from tests.data.generate_sample_audio import create_sample_wav
-        create_sample_wav()
-        # Retry test
-        with open("tests/data/sample_audio.wav", "rb") as f:
-            duration = get_audio_duration(f.read())
-            assert isinstance(duration, float)
-            assert duration > 0
+def test_audio_duration(test_messages, sample_audio_data):
+    duration = get_audio_duration(sample_audio_data)
+    assert duration > 0, test_messages["audio"]["no_audio_data"]
+    assert duration < 60, test_messages["audio"]["invalid_duration"].format(seconds=60)

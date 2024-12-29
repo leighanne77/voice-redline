@@ -1,0 +1,32 @@
+TODO: Set up Google Cloud OAuth Credentials
+
+1. Get CHROME_EXTENSION_ID:
+- Load unpacked extension in Chrome (chrome://extensions/)
+- Enable Developer Mode
+- Note the Extension ID shown
+
+2. Set up Google Cloud Project:
+- Go to https://console.cloud.google.com/
+- Create new project or select existing
+- Enable required APIs:
+  * Google Docs API
+  * Google Drive API
+  * Identity API
+
+3. Get OAuth 2.0 Credentials:
+- Go to APIs & Services > Credentials
+- Create OAuth 2.0 Client ID
+- Set application type as "Chrome Extension"
+- Add authorized redirect URI:
+  https://<CHROME_EXTENSION_ID>.chromiumapp.org/oauth2callback
+
+4. Get these credentials and add to .env:
+GOOGLE_CLIENT_ID=<your_client_id>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=<your_client_secret>
+GOOGLE_PROJECT_ID=<your_project_id>
+CHROME_EXTENSION_ID=<your_extension_id>
+
+5. Update manifest.json:
+- Add OAuth client ID
+- Add key (from Chrome extension settings)
+- Verify permissions and scopes 

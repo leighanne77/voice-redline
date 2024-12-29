@@ -1,151 +1,435 @@
 # Voice-Redline Project Data Dictionary
 
-## ai_processor.py
+## TABLE OF CONTENTS
 
-### Functions
+1. [Backend (app/)](#backend-app)
+   - [main.py](#mainpy)
+     - [Classes](#classes)
+     - [Endpoints](#endpoints)
+   - [config.py](#configpy)
+     - [Classes](#classes-1)
+   - [services/](#services)
+     - [ai_processor.py](#ai_processorpy)
+     - [document_editor.py](#document_editorpy)
+     - [command_handler.py](#command_handlerpy)
+   - [utils/](#utils)
+     - [audio.py](#audiopy)
+     - [logging.py](#loggingpy)
 
-#### generate_suggestions(transcript: str) -> List[Dict[str, str]]
-- Purpose: Generates edit suggestions based on a transcribed conversation
-- Parameters:
-  - transcript: str - The transcribed conversation text
-- Returns: List of dictionaries, each containing 'original' and 'suggestion' keys
+2. [Chrome Extension (extension/)](#chrome-extension-extension)
+   - [manifest.json](#manifestjson)
+   - [oauth/](#oauth)
+     - [config.js](#configjs)
+     - [handler.js](#handlerjs)
+   - [ui/](#ui)
+     - [popup.html](#popuphtml)
+     - [popup.js](#popupjs)
+     - [styles.css](#stylescss)
+   - [content/](#content)
+     - [inject.js](#injectjs)
+     - [commands.js](#commandsjs)
 
-#### analyze_document(document_content: str) -> Dict[str, str]
-- Purpose: Analyzes document content and provides insights
-- Parameters:
-  - document_content: str - The content of the document to analyze
-- Returns: Dictionary with 'summary', 'key_points', and 'suggestions' keys
+3. [Tests](#tests)
+   - [tests/unit/](#testsunit)
+     - [test_ai_processor.py](#test_ai_processorpy)
+     - [test_document_editor.py](#test_document_editorpy)
+     - [test_audio_utils.py](#test_audio_utilspy)
+   - [tests/integration/](#testsintegration)
+     - [test_api_endpoints.py](#test_api_endpointspy)
+     - [test_websocket.py](#test_websocketpy)
+   - [tests/e2e/](#testse2e)
+     - [test_extension.py](#test_extensionpy)
+     - [test_full_workflow.py](#test_full_workflowpy)
+   - [tests/data/](#testsdata)
+   - [tests/constants/](#testconstants)
+     - [test_messages.py](#test_messagespy)
+     - [message_loader.py](#message_loaderpy)
 
-#### generate_todo_list(document_content: str) -> List[str]
-- Purpose: Generates a to-do list based on document content
-- Parameters:
-  - document_content: str - The content of the document
-- Returns: List of strings representing to-do items
+4. [Configuration](#configuration)
+   - [.env](#env)
+   - [requirements.txt](#requirementstxt)
+   - [pyproject.toml](#pyprojecttoml)
 
-### Variables
+5. [Documentation](#documentation)
+   - [README.md](#readmemd)
+   - [data_dictionary.md](#data_dictionarymd)
+   - [project_structure.md](#project_structuremd)
+   - [roadmap.md](#roadmapmd)
 
-- GROQ_API_KEY: str - API key for the Groq API
-- GROQ_API_URL: str - URL endpoint for the Groq API
+6. [Logs](#logs)
+   - [logs/app.log](#logsapplog)
+   - [logs/error.log](#logserrorlog)
 
-## document_editor.py
+## START OF DATA DICTIONARY
+
+# Backend (app/)
+
+## main.py
 
 ### Classes
 
-#### Document
-- Purpose: Represents a document with its content and metadata
+#### ConnectionManager
+- Purpose: Manages WebSocket connections and document sessions
 - Attributes:
-  - id: str - Unique identifier for the document
-  - content: str - The text content of the document
-  - changes: List[Dict] - List of changes made to the document
-  - cursor_position: int - Current cursor position in the document
-  - access_log: List[Dict] - Log of user accesses to the document
-  - appendix: str - Appendix containing change and access logs
+  - active_connections: List[WebSocket] - List of all active connections
+  - document_sessions: Dict[str, List[WebSocket]] - Document-specific connections
+- Methods:
+  - connect(websocket: WebSocket, document_id: str) -> None
+  - disconnect(websocket: WebSocket, document_id: str) -> None
+  - broadcast_to_document(document_id: str, message: Dict) -> None
 
-### Functions
+### Endpoints
 
-#### get_or_create_document(document_id: str) -> Document
-- Purpose: Retrieves or creates a document with the given ID
+#### GET /
+- Purpose: Health check endpoint
+- Returns: Dict with status and timestamp
+
+#### POST /upload
+- Purpose: Handle file uploads for processing
 - Parameters:
-  - document_id: str - The ID of the document to get or create
-- Returns: Document object
+  - file: UploadFile - The file to process
+- Returns: Dict with processing results
 
-#### apply_changes(document_id: str, changes: List[Dict], user: str) -> Dict
-- Purpose: Applies a list of changes to a document
+#### WebSocket /ws/{document_id}
+- Purpose: Handle real-time voice processing
 - Parameters:
-  - document_id: str - The ID of the document to modify
-  - changes: List[Dict] - List of changes to apply
-  - user: str - The user making the changes
-- Returns: Dictionary with status and updated content
+  - document_id: str - The document identifier
 
-#### clear_changes(document_id: str) -> Dict
-- Purpose: Clears all pending changes for a document
+#### POST /process-command/{document_id}
+- Purpose: Process manual commands
 - Parameters:
-  - document_id: str - The ID of the document
-- Returns: Dictionary with status and message
+  - document_id: str - The document identifier
+  - command: Dict[str, Any] - The command to process
 
-#### accept_changes(document_id: str) -> Dict
-- Purpose: Accepts all pending changes for a document
-- Parameters:
-  - document_id: str - The ID of the document
-- Returns: Dictionary with status, message, and updated content
+## config.py
 
-#### move_cursor(document_id: str, direction: str, steps: int = 1) -> Dict
-- Purpose: Moves the cursor in the specified direction
-- Parameters:
-  - document_id: str - The ID of the document
-  - direction: str - Direction to move ('up', 'down', or 'forward')
-  - steps: int - Number of steps to move (default: 1)
-- Returns: Dictionary with status and new cursor position
+### Classes
 
-#### move_cursor_to_words(document_id: str, words: str) -> Dict
-- Purpose: Moves the cursor to the specified words in the document
-- Parameters:
-  - document_id: str - The ID of the document
-  - words: str - The words to find and move the cursor to
-- Returns: Dictionary with status and new cursor position
+#### Settings
+- Purpose: Application configuration management
+- Attributes:
+  - HOST: str - Server host address (default: "0.0.0.0")
+  - PORT: int - Server port number (default: 8000)
+  - LOG_LEVEL: str - Logging level (default: "INFO")
+  - MAX_SUGGESTIONS: int - Maximum suggestions allowed
+  - GROQ_API_KEY: str - API key for Groq
+  - TESTING: bool - Testing mode flag
 
-#### get_document_content(document_id: str) -> str
-- Purpose: Retrieves the content of a document
-- Parameters:
-  - document_id: str - The ID of the document
-- Returns: String containing the document content
+## services/
 
-#### update_document_content(document_id: str, new_content: str) -> Dict
-- Purpose: Updates the content of a document
-- Parameters:
-  - document_id: str - The ID of the document
-  - new_content: str - The new content to set
-- Returns: Dictionary with status and message
+### ai_processor.py
 
-#### log_access(document_id: str, user: str) -> None
-- Purpose: Logs user access to a document
-- Parameters:
-  - document_id: str - The ID of the document
-  - user: str - The user accessing the document
+#### Classes
 
-#### update_appendix(document: Document) -> None
-- Purpose: Updates the appendix of a document with change and access logs
-- Parameters:
-  - document: Document - The document to update
+##### AIProcessor
+- Purpose: Processes text using Groq API for suggestions and commands
+- Attributes:
+  - client: groq.Client - Instance of Groq API client
+  - is_listening: bool - Flag indicating if processor is listening
+  - command_callback: Optional[Callable] - Callback for command processing
 
-#### get_appendix(document_id: str) -> str
-- Purpose: Retrieves the appendix of a document
-- Parameters:
-  - document_id: str - The ID of the document
-- Returns: String containing the appendix content
+#### Methods
+- start_listening(document_id: str) -> None
+- stop_listening() -> None
+- set_command_callback(callback: Callable) -> None
+- handle_command(text: str) -> Dict[str, Any]
+- process_input(data: bytes, input_type: str) -> Dict[str, Any]
+- process_command(command: str) -> Dict[str, Any]
+- get_suggestions(text: str) -> Dict[str, Any]
+- generate_suggestions(text: str) -> dict
+- handle_formatting(changes: dict) -> dict
+- process_with_groq(text: str) -> dict
 
-### Variables
+### document_editor.py
 
-- documents: Dict[str, Document] - Dictionary storing all documents in memory
+#### Classes
 
-## Note on JavaScript Files
+##### DocumentEditor
+- Purpose: Manages document state and changes
+- Attributes:
+  - documents: Dict[str, Dict[str, Any]] - Document storage
+  - document_states: Dict[str, str] - Document state tracking
+  - change_history: Dict[str, List[Dict[str, Any]]] - Change history
+  - ai_processor: AIProcessor - Instance of AI processor
 
-The project also includes JavaScript files for the Chrome extension (popup.js and content.js). These files contain functions for handling user interactions, managing the extension's UI, and interacting with web pages. A separate data dictionary for these JavaScript files may be beneficial for a complete project overview.
+#### Methods
+- apply_changes(document_id: str, changes: Dict[str, Any]) -> Dict[str, Any]
+- update_appendix(document_id: str, changes: Dict[str, Any]) -> None
+- create_document(document_id: str, content: str) -> Dict[str, Any]
+- get_document(document_id: str) -> Dict[str, Any]
+- finalize_document(document_id: str) -> Dict[str, Any]
+- restore_original(document_id: str) -> Dict[str, Any]
+- _update_document_state(document_id: str, state: str) -> None
+- _apply_document_changes(document: Dict, changes: Dict) -> Dict
+- _apply_edit(content: str, new_text: str, position: int) -> str
 
-## Chrome Extension Components
-- **manifest.json**: Configuration file that tells Chrome about the extension, its permissions, and resources
-- **popup.html**: The UI that appears when clicking the extension icon
-- **content_script**: JavaScript that runs in the context of web pages
-- **background_script**: JavaScript that runs in the extension's background process
-- **extension_id**: Unique identifier Chrome assigns to the extension
+### command_handler.py
 
-## Voice Commands
-// ... existing voice commands ...
+#### Classes
 
-## API Endpoints
-// ... existing API endpoints ...
+##### CommandHandler
+- Purpose: Processes voice and text commands
+- Methods:
+  - process_command(command: str) -> Dict
+  - handle_voice_command(audio: bytes) -> Dict
+  - validate_command(command: str) -> bool
+  - execute_command(command: str) -> Dict[str, Any]
+  - parse_command_parameters(command: str) -> Dict[str, Any]
 
-## Document Processing
-// ... existing document processing ...
+## utils/
 
-## Error Handling
-// ... existing error handling ...
+### audio.py
 
-## Browser Integration
-- **DOM Manipulation**: Direct interaction with webpage elements
-- **Selection API**: Browser's text selection and cursor position interface
-- **MutationObserver**: Watches for changes in the document
-- **Content Security Policy**: Security rules for extension resources
+#### Functions
+- validate_audio_format(audio_data: bytes) -> bool
+- convert_audio_format(audio_data: bytes, target_format: Dict[str, Any]) -> bytes
+- get_audio_duration(audio_data: bytes) -> float
+- get_audio_properties(audio_data: bytes) -> Dict[str, Any]
 
-## State Management
-// ... existing state management ...
+### logging.py
+
+#### Variables
+- logger: logging.Logger - Application logger instance
+- LOG_FORMAT: str - Log message format
+- LOG_FILE: str - Log file path
+
+#### Functions
+- configure_logging() -> None
+- log_error(message: str, error: Exception) -> None
+- log_api_call(endpoint: str, method: str)
+
+
+# Chrome Extension (extension/)
+
+## manifest.json
+- Purpose: Extension configuration file
+- Properties:
+  - manifest_version: int - Extension manifest version (3)
+  - name: str - Extension name
+  - version: str - Extension version
+  - permissions: List[str] - Required browser permissions
+    - activeTab
+    - storage
+    - identity
+    - scripting
+  - content_scripts: List[Dict] - Injected scripts configuration
+  - background: Dict - Service worker configuration
+  - icons: Dict - Extension icon paths
+
+## oauth/
+
+### config.js
+- Purpose: OAuth configuration settings
+- Variables:
+  - CLIENT_ID: str - OAuth client identifier
+  - AUTH_ENDPOINT: str - Authorization endpoint URL
+  - TOKEN_ENDPOINT: str - Token endpoint URL
+  - SCOPES: Array[str] - Required OAuth scopes
+
+### handler.js
+- Purpose: Authentication flow management
+- Functions:
+  - initializeAuth() -> Promise<void>
+  - handleCallback(code: string) -> Promise<TokenResponse>
+  - refreshToken() -> Promise<TokenResponse>
+  - validateToken() -> boolean
+
+## ui/
+
+### popup.html
+- Purpose: Extension popup interface structure
+- Components:
+  - Control buttons: Start/Stop recording
+  - Status indicators: Connection status
+  - Settings panel: Configuration options
+  - Suggestion display: AI suggestions area
+
+### popup.js
+- Purpose: Popup interaction handling
+- Functions:
+  - initializePopup() -> void
+  - handleCommands(command: string) -> Promise<void>
+  - updateStatus(status: StatusType) -> void
+  - displaySuggestions(suggestions: Array<Suggestion>) -> void
+
+### styles.css
+- Purpose: UI styling definitions
+- Components:
+  - Layout styles: Grid and flexbox layouts
+  - Theme colors: Primary and secondary colors
+  - Component styles: Buttons, panels, indicators
+
+## content/
+
+### inject.js
+- Purpose: Document interaction script
+- Functions:
+  - injectMarkup(changes: Changes) -> void
+  - handleSelection(range: Range) -> void
+  - applyChanges(changes: Changes) -> void
+  - trackChanges(mutation: MutationRecord) -> void
+
+### commands.js
+- Purpose: Voice command handlers
+- Functions:
+  - processVoiceCommand(audio: AudioData) -> Promise<Command>
+  - executeCommand(command: Command) -> Promise<void>
+  - updateUI(status: UIStatus) -> void
+
+# Tests
+
+## tests/unit/
+
+### test_ai_processor.py
+- Purpose: Unit tests for AI processing
+- Test Cases:
+  - test_command_processing() - Verify command interpretation
+  - test_suggestion_generation() - Test AI suggestions
+  - test_groq_integration() - Validate API integration
+
+### test_document_editor.py
+- Purpose: Unit tests for document editing
+- Test Cases:
+  - test_create_document() - Document creation
+  - test_apply_changes() - Change application
+  - test_version_control() - Version management
+
+### test_audio_utils.py
+- Purpose: Unit tests for audio processing
+- Test Cases:
+  - test_audio_validation() - Format validation
+  - test_format_conversion() - Audio conversion
+  - test_duration_calculation() - Duration computation
+
+## tests/integration/
+
+### test_api_endpoints.py
+- Purpose: Integration tests for API endpoints
+- Test Cases:
+  - test_health_check() - API availability
+  - test_document_upload() - File processing
+  - test_command_processing() - Command handling
+
+### test_websocket.py
+- Purpose: Integration tests for WebSocket functionality
+- Test Cases:
+  - test_connection_lifecycle() - Connection management
+  - test_document_sessions() - Session handling
+  - test_real_time_updates() - Update propagation
+
+## tests/e2e/
+
+### test_extension.py
+- Purpose: End-to-end tests for Chrome extension
+- Test Cases:
+  - test_extension_installation() - Installation flow
+  - test_document_markup() - Markup functionality
+  - test_voice_commands() - Voice control testing
+
+### test_full_workflow.py
+- Purpose: End-to-end tests for complete workflow
+- Test Cases:
+  - test_document_processing() - Full document flow
+  - test_collaboration_flow() - Multi-user testing
+  - test_error_handling() - Error recovery
+
+## tests/data/
+- Purpose: Test fixtures and sample data
+- Contents:
+  - sample_audio.wav - Test audio file
+  - sample_document.txt - Test document
+  - test_config.json - Test configuration
+
+## tests/constants/
+
+### test_messages.py
+- Purpose: Define message types and their corresponding outputs
+- Components:
+  - MessageType (Enum): Standardized message types
+    - Command messages (COMMAND_*)
+    - Error messages (ERROR_*)
+    - Success messages (SUCCESS_*)
+  - MESSAGE_OUTPUTS (Dict): Mapping of message types to output strings
+  - get_message(): Function to format messages with parameters
+
+### message_loader.py
+- Purpose: Load and format messages
+- Methods:
+  - get_message(message_type: MessageType, **kwargs) -> str
+
+# Configuration
+
+## .env
+- Purpose: Environment variables
+- Variables:
+  - GROQ_API_KEY: str - API authentication key
+  - HOST: str - Server host address
+  - PORT: int - Server port number
+  - LOG_LEVEL: str - Logging configuration
+
+## requirements.txt
+- Purpose: Python dependencies
+- Categories:
+  - Core dependencies
+  - Development tools
+  - Testing utilities
+
+## pyproject.toml
+- Purpose: Project configuration
+- Settings:
+  - Project metadata
+  - Build system configuration
+  - Tool settings
+  - Test configurations
+
+# Documentation
+
+## README.md
+- Purpose: Project overview and setup instructions
+- Sections:
+  - Project description
+  - Installation steps
+  - Usage guide
+  - Configuration details
+
+## data_dictionary.md
+- Purpose: Term definitions and code documentation
+- Sections:
+  - Backend components
+  - Extension components
+  - Data structures
+  - API endpoints
+
+## project_structure.md
+- Purpose: Directory layout documentation
+- Sections:
+  - Backend structure
+  - Extension structure
+  - Test organization
+  - Configuration files
+
+## roadmap.md
+- Purpose: Development plan and milestones
+- Sections:
+  - Current features
+  - Planned improvements
+  - Release schedule
+  - Known issues
+
+# Logs
+
+## logs/app.log
+- Purpose: Application activity logging
+- Contents:
+  - Info level logs
+  - Warning messages
+  - Error traces
+  - Request/response data
+
+## logs/error.log
+- Purpose: Error tracking
+- Contents:
+  - Error messages
+  - Stack traces
+  - Critical issues
+  - System warnings

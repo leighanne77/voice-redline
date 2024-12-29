@@ -1,0 +1,25 @@
+# Testing Framework
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+coverage==7.6.8
+
+# Test Utilities
+pytest-xdist==3.5.0  # For parallel test execution
+pytest-timeout==2.3.1  # For test timeouts
+pytest-randomly==3.15.0  # For random test ordering
+pytest-sugar==1.0.0  # For better test progress visualization
+pytest-html==4.1.1  # For HTML test reports
+
+# HTTP Testing
+httpx==0.27.0  # For async HTTP testing
+requests==2.31.0  # For sync HTTP testing
+websockets==12.0  # For WebSocket testing
+
+# Mock Data
+faker==24.2.0  # For generating test data
+
+# Internationalization
+babel==2.14.0  # For language support
+polib==1.2.0  # For handling translation files

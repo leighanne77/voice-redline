@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # Server settings
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    log_level: str = "INFO"
+    LOG_LEVEL: str = "INFO"
     MAX_SUGGESTIONS: int = 3
     
     # API Configuration
@@ -17,17 +17,27 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "test_secret_key"
     
     # Model Configuration
-    PRIMARY_MODEL: str = "whisper-turbo"
-    FALLBACK_MODEL: str = "mixtral-8x7b-32768"
+    PRIMARY_MODEL: str = "mixtral-8x7b-32768"
+    FALLBACK_MODEL: str = "whisper-turbo"
     USE_FALLBACK: bool = True
     
     # API Limits
     API_CALL_LIMIT: int = 100
     API_CALL_INTERVAL: int = 3600  # seconds
+    VOICE_CALL_LIMIT: int = 30
+    VOICE_CALL_INTERVAL: int = 60  # seconds
+    GROQ_CALL_LIMIT: int = 50
+    GROQ_CALL_INTERVAL: int = 60  # seconds
+    WEBSOCKET_MESSAGE_LIMIT: int = 100
+    WEBSOCKET_MESSAGE_INTERVAL: int = 60  # seconds
     
     # Model Parameters
-    MAX_TOKENS: int = 1024
-    TEMPERATURE: float = 0.8
+    MAX_TOKENS: int = 2048
+    TEMPERATURE: float = 0.7
+    
+    # Document Settings
+    MAX_DOCUMENT_SIZE: int = 10  # MB
+    SUPPORTED_DOC_TYPES: list = ["google_docs", "microsoft_office"]
     
     # Retry Configuration
     RETRY_ATTEMPTS: int = 3
@@ -38,7 +48,7 @@ class Settings(BaseSettings):
         case_sensitive=True,
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow"  # Allow extra fields from env
+        extra="allow"
     )
 
     def __init__(self, **kwargs):

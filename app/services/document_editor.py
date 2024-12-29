@@ -1,187 +1,178 @@
-from typing import Dict, Any, Optional, List
-from datetime import datetime
-import asyncio
-from app.services.ai_processor import AIProcessor
-from app.config import settings
-from app.utils.logging import logger
+from typing import Dict, Any, List, Optional
+from tests.constants.test_messages import MessageType
+from tests.constants.message_loader import MessageLoader
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DocumentEditor:
     def __init__(self):
-        self.ai_processor = AIProcessor()
+        self.message_loader = MessageLoader()
         self.documents: Dict[str, Dict[str, Any]] = {}
         self.document_states: Dict[str, str] = {}
         self.change_history: Dict[str, List[Dict[str, Any]]] = {}
+        self.active_users: Dict[str, Dict[str, Any]] = {}
+        self.paragraph_locks: Dict[str, str] = {}  # paragraph_id: user_id
+        self.preview_states: Dict[str, Dict[str, Any]] = {}
 
-    async def apply_changes(self, document_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
-        """Apply changes to document and track history"""
+    async def init_document(self, doc_id: str, doc_type: str) -> Dict[str, Any]:
+        """Initialize document tracking"""
         try:
-            if document_id not in self.documents:
-                raise ValueError(f"Document {document_id} not found")
-
-            # Format changes with strikeout and highlighting
-            formatted_changes = {
-                **changes,
-                "formatting": {
-                    "original": {"strikethrough": True},
-                    "new": {"highlight": True}
-                },
-                "timestamp": datetime.now().isoformat()
-            }
-
-            # Apply the changes
-            document = self.documents[document_id]
-            updated_document = await self._apply_document_changes(document, formatted_changes)
-            self.documents[document_id] = updated_document
-
-            # Update change history
-            await self.update_appendix(document_id, formatted_changes)
-
-            # Update document state
-            self._update_document_state(document_id, "reviewing")
-
-            return {
-                "document_id": document_id,
-                "original": document,
-                "modified": updated_document,
-                "changes": formatted_changes,
-                "state": self.document_states[document_id],
-                "timestamp": datetime.now().isoformat()
-            }
-
-        except Exception as e:
-            logger.error(f"Error applying changes to document {document_id}: {str(e)}")
-            raise
-
-    async def update_appendix(self, document_id: str, changes: Dict[str, Any]) -> None:
-        """Update document appendix with change history"""
-        try:
-            if document_id not in self.change_history:
-                self.change_history[document_id] = []
-
-            appendix_entry = {
-                "timestamp": datetime.now().isoformat(),
-                "changes": changes,
-                "user": changes.get("user", "unknown"),
-                "type": changes.get("action", "unknown")
-            }
-
-            self.change_history[document_id].append(appendix_entry)
-            logger.info(f"Updated appendix for document {document_id}")
-
-        except Exception as e:
-            logger.error(f"Error updating appendix for document {document_id}: {str(e)}")
-            raise
-
-    async def create_document(self, document_id: str, content: str) -> Dict[str, Any]:
-        """Create new document"""
-        try:
-            if document_id in self.documents:
-                raise ValueError(f"Document {document_id} already exists")
-
-            document = {
-                "content": content,
-                "created_at": datetime.now().isoformat(),
-                "version": 1
-            }
-
-            self.documents[document_id] = document
-            self.document_states[document_id] = "draft"
-            self.change_history[document_id] = []
-
-            return {
-                "document_id": document_id,
-                "document": document,
-                "state": "draft"
-            }
-
-        except Exception as e:
-            logger.error(f"Error creating document {document_id}: {str(e)}")
-            raise
-
-    async def get_document(self, document_id: str) -> Dict[str, Any]:
-        """Get document and its current state"""
-        try:
-            if document_id not in self.documents:
-                raise ValueError(f"Document {document_id} not found")
-
-            return {
-                "document_id": document_id,
-                "document": self.documents[document_id],
-                "state": self.document_states[document_id],
-                "history": self.change_history.get(document_id, [])
-            }
-
-        except Exception as e:
-            logger.error(f"Error retrieving document {document_id}: {str(e)}")
-            raise
-
-    async def finalize_document(self, document_id: str) -> Dict[str, Any]:
-        """Finalize document and lock for further changes"""
-        try:
-            if document_id not in self.documents:
-                raise ValueError(f"Document {document_id} not found")
-
-            self._update_document_state(document_id, "final")
+            if doc_type not in ["google_docs", "microsoft_office"]:
+                return {
+                    "error": self.message_loader.get_message(
+                        MessageType.ERROR_INVALID_DOC_TYPE,
+                        type=doc_type
+                    )
+                }
             
-            return await self.get_document(document_id)
-
+            self.documents[doc_id] = {
+                "type": doc_type,
+                "paragraphs": {},
+                "users": [],
+                "changes": []
+            }
+            return {
+                "message": self.message_loader.get_message(MessageType.DOC_INITIALIZED)
+            }
         except Exception as e:
-            logger.error(f"Error finalizing document {document_id}: {str(e)}")
-            raise
-
-    async def restore_original(self, document_id: str) -> Dict[str, Any]:
-        """Restore document to original state"""
-        try:
-            if document_id not in self.documents:
-                raise ValueError(f"Document {document_id} not found")
-
-            # Clear change history
-            self.change_history[document_id] = []
-            self._update_document_state(document_id, "draft")
-
-            return await self.get_document(document_id)
-
-        except Exception as e:
-            logger.error(f"Error restoring document {document_id}: {str(e)}")
-            raise
-
-    def _update_document_state(self, document_id: str, state: str) -> None:
-        """Update document state"""
-        valid_states = ["draft", "reviewing", "final"]
-        if state not in valid_states:
-            raise ValueError(f"Invalid state: {state}")
-        self.document_states[document_id] = state
-
-    async def _apply_document_changes(self, document: Dict[str, Any], changes: Dict[str, Any]) -> Dict[str, Any]:
-        """Apply changes to document content"""
-        try:
-            # Deep copy the document to avoid mutations
-            updated_document = document.copy()
-            
-            # Apply the changes based on the action type
-            if changes.get("action") == "edit":
-                updated_document["content"] = await self._apply_edit(
-                    document["content"],
-                    changes.get("text", ""),
-                    changes.get("position", 0)
+            return {
+                "error": self.message_loader.get_message(
+                    MessageType.ERROR_PROCESSING,
+                    error=str(e)
                 )
-            elif changes.get("action") == "suggestion":
-                updated_document["suggestions"] = updated_document.get("suggestions", [])
-                updated_document["suggestions"].append(changes)
-            
-            updated_document["version"] = document.get("version", 0) + 1
-            updated_document["last_modified"] = datetime.now().isoformat()
-            
-            return updated_document
+            }
 
-        except Exception as e:
-            logger.error(f"Error applying document changes: {str(e)}")
-            raise
+    async def add_user(self, doc_id: str, user_id: str) -> Dict[str, Any]:
+        """Add user to document session"""
+        if doc_id not in self.documents:
+            return {
+                "error": self.message_loader.get_message(MessageType.ERROR_DOC_NOT_FOUND)
+            }
+        
+        self.active_users[user_id] = {
+            "doc_id": doc_id,
+            "cursor_position": None,
+            "selected_paragraph": None
+        }
+        self.documents[doc_id]["users"].append(user_id)
+        
+        return {
+            "message": self.message_loader.get_message(MessageType.USER_JOINED)
+        }
 
-    async def _apply_edit(self, content: str, new_text: str, position: int) -> str:
-        """Apply edit to content at specific position"""
+    async def apply_changes(self, doc_id: str, paragraph_id: str, 
+                          changes: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Apply changes to document"""
         try:
-            return content[:position] + new_text + content[position:]
+            # Check document exists
+            if doc_id not in self.documents:
+                return {
+                    "error": self.message_loader.get_message(MessageType.ERROR_DOC_NOT_FOUND)
+                }
+
+            # Check paragraph lock
+            if paragraph_id in self.paragraph_locks and self.paragraph_locks[paragraph_id] != user_id:
+                return {
+                    "error": self.message_loader.get_message(
+                        MessageType.ERROR_PARAGRAPH_LOCKED,
+                        user=self.paragraph_locks[paragraph_id]
+                    )
+                }
+
+            # Store original if first change
+            if paragraph_id not in self.documents[doc_id]["paragraphs"]:
+                self.documents[doc_id]["paragraphs"][paragraph_id] = {
+                    "original": changes["original"],
+                    "current": changes["original"],
+                    "history": []
+                }
+
+            # Apply changes
+            self.documents[doc_id]["paragraphs"][paragraph_id]["current"] = changes["new"]
+            self.documents[doc_id]["paragraphs"][paragraph_id]["history"].append({
+                "user_id": user_id,
+                "timestamp": "current_time",
+                "change": changes["new"],
+                "original": changes["original"]
+            })
+
+            return {
+                "message": self.message_loader.get_message(MessageType.CHANGES_APPLIED),
+                "html": self._generate_paragraph_html(doc_id, paragraph_id)
+            }
         except Exception as e:
-            logger.error(f"Error applying edit: {str(e)}")
-            raise 
+            return {
+                "error": self.message_loader.get_message(
+                    MessageType.ERROR_PROCESSING,
+                    error=str(e)
+                )
+            }
+
+    async def preview_changes(self, doc_id: str, paragraph_id: str, 
+                            suggestion: str) -> Dict[str, Any]:
+        """Generate preview of changes"""
+        try:
+            original = self.documents[doc_id]["paragraphs"][paragraph_id]["current"]
+            preview_html = f"""
+            <div class="preview-panel">
+                <div class="original"><strike>{original}</strike></div>
+                <div class="suggestion"><highlight>{suggestion}</highlight></div>
+            </div>
+            """
+            
+            self.preview_states[paragraph_id] = {
+                "original": original,
+                "suggestion": suggestion,
+                "html": preview_html
+            }
+            
+            return {
+                "message": self.message_loader.get_message(MessageType.PREVIEW_READY),
+                "preview": self.preview_states[paragraph_id]
+            }
+        except Exception as e:
+            return {
+                "error": self.message_loader.get_message(
+                    MessageType.ERROR_PROCESSING,
+                    error=str(e)
+                )
+            }
+
+    async def generate_appendix(self, doc_id: str) -> Dict[str, Any]:
+        """Generate change history appendix"""
+        try:
+            appendix = ["# Document Change History\n"]
+            doc = self.documents[doc_id]
+            
+            for para_id, para_data in doc["paragraphs"].items():
+                if para_data["history"]:
+                    appendix.append(f"\n## Paragraph {para_id}")
+                    appendix.append(f"Original: {para_data['original']}")
+                    for change in para_data["history"]:
+                        appendix.append(
+                            f"Changed to: {change['change']} "
+                            f"(by user {change['user_id']} at {change['timestamp']})"
+                        )
+            
+            return {
+                "message": self.message_loader.get_message(MessageType.APPENDIX_GENERATED),
+                "appendix": "\n".join(appendix)
+            }
+        except Exception as e:
+            return {
+                "error": self.message_loader.get_message(
+                    MessageType.ERROR_PROCESSING,
+                    error=str(e)
+                )
+            }
+
+    def _generate_paragraph_html(self, doc_id: str, paragraph_id: str) -> str:
+        """Generate HTML for paragraph with changes"""
+        para_data = self.documents[doc_id]["paragraphs"][paragraph_id]
+        return f"""
+        <div class="paragraph" id="{paragraph_id}">
+            <div class="original"><strike>{para_data['original']}</strike></div>
+            <div class="current"><highlight>{para_data['current']}</highlight></div>
+        </div>
+        """ 
